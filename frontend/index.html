@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gymkana Hub - Control Maestro</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.1/build/qrcode.min.js"></script>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body class="locked">
+    <div class="glow-bg"></div>
+
+    <!-- PANEL DE AUDITORÍA -->
+    <div id="audit-overlay" class="auth-overlay" style="display:none; background: rgba(0,0,0,0.95); z-index:9999;">
+        <div class="auth-card module" style="width: 98%; max-width: 1200px; height: 90vh;">
+            <h2 style="color: var(--primary);">MATRIZ DE PUNTUACIONES</h2>
+            <p>Eje X: Grupos | Eje Y: Pruebas</p>
+            <div class="audit-scroll-container">
+                <table class="audit-matrix-table">
+                    <thead id="audit-header"></thead>
+                    <tbody id="audit-body"></tbody>
+                </table>
+            </div>
+            <button class="primary-btn" onclick="hideAudit()" style="margin-top:20px">Volver al Panel</button>
+        </div>
+    </div>
+
+    <!-- DIAGNÓSTICO -->
+    <div id="diag-overlay" class="auth-overlay" style="display:none; background: rgba(0,0,0,0.9); z-index:9999">
+        <div class="auth-card module" style="width: 90%; max-width: 600px;">
+            <h2 style="color: #f43f5e;">INFORME TÉCNICO</h2>
+            <textarea id="diag-text" readonly style="width: 100%; height: 200px; background: #000; color: #0f0; font-family: monospace;"></textarea>
+            <button class="primary-btn" onclick="hideDiag()">Cerrar</button>
+        </div>
+    </div>
+
+    <!-- PIN DINÁMICO (2412 Admin / 3333 Colab) -->
+    <div id="pin-overlay" class="auth-overlay">
+        <div class="auth-card module">
+            <div class="auth-icon">🔒</div>
+            <h2 id="pin-title">CONTROL DE ACCESO</h2>
+            <p id="pin-subtitle">Introduce PIN de Seguridad:</p>
+            <div id="pin-dots" class="pin-dots"><span></span><span></span><span></span><span></span></div>
+            <div class="numpad">
+                <button onclick="pressKey(1)">1</button><button onclick="pressKey(2)">2</button><button onclick="pressKey(3)">3</button>
+                <button onclick="pressKey(4)">4</button><button onclick="pressKey(5)">5</button><button onclick="pressKey(6)">6</button>
+                <button onclick="pressKey(7)">7</button><button onclick="pressKey(8)">8</button><button onclick="pressKey(9)">9</button>
+                <button onclick="clearPin()">C</button><button onclick="pressKey(0)">0</button><button onclick="checkPin()">OK</button>
+            </div>
+            <p id="auth-error" class="error-msg" style="display:none; color: #f43f5e; margin-top:10px">PIN INCORRECTO</p>
+        </div>
+    </div>
+
+    <div id="app-content" style="display:none;">
+        <header>
+            <div class="logo-container" onclick="showView('home')">
+                <div class="atom-icon">⚛</div>
+                <div class="header-text">
+                    <h1>GYMKANA HUB</h1>
+                    <p id="system-status">Operación: Central</p>
+                </div>
+            </div>
+            <!-- BOTÓN VOLVER INICIO (Solo para Admin) -->
+            <button id="btn-head-home" class="home-nav-btn" onclick="exitTournament()" style="display:none">🏠 Inicio</button>
+        </header>
+
+        <main id="view-home" class="view">
+            <div class="home-grid">
+                <div class="module list-panel">
+                    <h2 class="module-title">CONTROL DE GYMKANAS</h2>
+                    <div id="tournaments-list" class="tourney-cards"></div>
+                </div>
+                <div class="module create-panel">
+                    <h2 class="module-title">GENERAR MISIÓN</h2>
+                    <input type="text" id="new-t-name" placeholder="Nombre (ej: Gymkana 2A)">
+                    <div class="row">
+                        <div class="input-block"><label>Grupos</label><input type="number" id="new-t-groups" value="5"></div>
+                        <div class="input-block"><label>Pruebas</label><input type="number" id="new-t-challenges" value="10"></div>
+                    </div>
+                    <button class="primary-btn" onclick="createTournament()">Generar Gymkana</button>
+                    <button class="danger-btn" style="margin-top:20px; font-size:0.6rem" onclick="resetAll()">RESTABLECER TODO</button>
+                </div>
+            </div>
+        </main>
+
+        <main id="view-admin" class="view" style="display:none;">
+            <div class="admin-grid">
+                <aside class="control-panel">
+                    <section class="module admin-only">
+                        <h2 class="module-title">OPERACIONES</h2>
+                        <button class="primary-btn" onclick="document.getElementById('csv-input').click()">📁 Cargar Científicos</button>
+                        <input type="file" id="csv-input" style="display:none" onchange="uploadCSV()">
+                        
+                        <div style="margin-top:15px; border-top:1px solid rgba(255,255,255,0.1); padding-top:15px">
+                            <button class="primary-btn" onclick="document.getElementById('map-input').click()">🗺️ Subir Mapa Local</button>
+                            <input type="file" id="map-input" style="display:none" onchange="uploadMap()">
+                            
+                            <p style="font-size:0.6rem; margin: 10px 0 5px; color:var(--text-dim)">O PEGAR URL (Recomendado para Nube):</p>
+                            <div style="display:flex; gap:5px">
+                                <input type="text" id="map-url-input" placeholder="https://..." style="margin:0; font-size:0.7rem">
+                                <button class="primary-btn" onclick="saveMapURL()" style="width:auto; padding:0 10px">OK</button>
+                            </div>
+                        </div>
+
+                        <button class="audit-btn" onclick="showAudit()" style="margin-top:20px">🔍 REPASAR VOTOS (Matriz)</button>
+                    </section>
+                    <section class="module">
+                        <h2 class="module-title">ACCESO REMOTO (QR)</h2>
+                        <div class="qr-box"><canvas id="qr-canvas"></canvas></div>
+                        <p id="qr-url-display" style="font-size:0.5rem; color:var(--primary); word-break:break-all; opacity:0.7; margin-top:5px"></p>
+                    </section>
+                </aside>
+                <main class="map-module">
+                    <div class="module">
+                        <h2 class="module-title">MAPA TÁCTICO: PRUEBA <span id="admin-c-num">1</span></h2>
+                        <div class="map-wrapper"><img id="admin-map-preview"><div id="admin-pins-overlay"></div></div>
+                        <div style="margin-top:15px; display:flex; flex-wrap:wrap; align-items:center; gap:15px">
+                            <div style="display:flex; align-items:center; gap:10px">
+                                <label>Prueba:</label>
+                                <input type="number" id="select-c-num" value="1" min="1" onchange="updateAdminCNum()" style="width:70px; margin:0">
+                            </div>
+                            <!-- BOTÓN PARA PUNTUAR DESDE EL PC -->
+                            <button class="primary-btn" onclick="scoreFromPC()" style="width:auto; margin:0; padding: 0.5rem 1rem; flex-grow:1">🚀 PUNTUAR PRUEBA ACTUAL (PC)</button>
+                        </div>
+                    </div>
+                </main>
+                <section class="rank-panel module">
+                    <h2 class="module-title">RANKING EN VIVO</h2>
+                    <div id="admin-leaderboard" class="leaderboard-scroll"></div>
+                </section>
+            </div>
+        </main>
+
+        <main id="view-challenge" class="view" style="display:none;">
+            <section class="module challenge-header" style="display:flex; justify-content:space-between; align-items:center">
+                <h2 id="chall-page-title">PRUEBA</h2>
+                <!-- BOTÓN VOLVER (Solo para Admin) -->
+                <button class="primary-btn admin-only" onclick="showView('admin')" style="width:auto; margin:0; padding:0.4rem 1rem">🔙 Volver Admin</button>
+            </section>
+            <div id="challenge-groups-list" class="challenge-grid"></div>
+        </main>
+    </div>
+    <script src="app.js"></script>
+</body>
+</html>
