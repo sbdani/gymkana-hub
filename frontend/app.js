@@ -220,7 +220,16 @@ async function loadChallengePage(tid, cnum) {
         if (list) {
             list.innerHTML = groups.map(g => {
                 let fs = "";
-                for(let p=1; p<=5; p++) fs += `<button class="face-btn" ${(g.current_points==p)?'style="opacity:1;filter:grayscale(0);transform:scale(1.4)"':''} onclick="addScore(${g.id}, ${currentTid}, ${cnum}, ${p}, this)">${["😡","😟","😐","🙂","😄"][p-1]}</button>`;
+                for(let p=1; p<=5; p++) {
+                    // Añadimos data-active para saber si es el seleccionado originalmente
+                    const isActive = (g.current_points == p);
+                    fs += `<button class="face-btn" 
+                            data-points="${p}"
+                            ${isActive ? 'data-selected="true" style="opacity:1;filter:grayscale(0);transform:scale(1.4)"' : 'data-selected="false"'} 
+                            onclick="addScore(${g.id}, ${currentTid}, ${cnum}, ${p}, this)">
+                            ${["😡","😟","😐","🙂","😄"][p-1]}
+                           </button>`;
+                }
                 return `<div class="module group-card"><p class="group-header" style="color:var(--primary)">${g.name}</p><div class="faces-container">${fs}</div></div>`;
             }).join('');
         }
@@ -232,14 +241,14 @@ async function addScore(gid, tid, cnum, pts, btn) {
     const chs = await resC.json();
     let ch = chs.find(c => c.number == cnum);
     if (!ch) return alert("Prueba no situada.");
-    btn.parentElement.querySelectorAll('.face-btn').forEach(b => { b.style.opacity = '0.3'; b.style.filter = 'grayscale(0.8)'; b.style.transform = 'scale(1)'; });
-    btn.style.opacity = '1'; btn.style.filter = 'grayscale(0)'; btn.style.transform = 'scale(1.4)';
-    const formData = new FormData();
-    formData.append("group_id", gid); formData.append("challenge_id", ch.id); formData.append("points", pts);
-    await fetch('/score/', { method: 'POST', body: formData });
-    const toast = document.createElement('div'); toast.innerText = "OK"; toast.className = "toast-msg"; document.body.appendChild(toast);
-    setTimeout(() => toast.remove(), 1000);
-}
+
+    // --- LÓGICA DE DESVOTAR ---
+    const isAlreadySelected = btn.getAttribute('data-selected') === 'true';
+    let finalPoints = pts;
+
+    if (isAlreadySelected) {
+        // Si ya estaba seleccionado, ponemos los puntos a 0 (desvotar)
+        finalPoints = 0
 
 async function uploadCSV() {
     const i = document.getElementById('csv-input'); if (!i.files[0]) return;
