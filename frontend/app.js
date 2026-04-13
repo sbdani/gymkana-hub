@@ -268,27 +268,35 @@ async function loadChallengePage(tid, cnum) {
                 let facesHtml = "";
                 for(let p=1; p<=5; p++) {
                     const icon = ["😡","😟","😐","🙂","😄"][p-1];
-                    const isActive = (g.current_points == p) ? "style='opacity:1; filter:grayscale(0); transform:scale(1.4)'" : "";
-                    facesHtml += `<button class="face-btn" ${isActive} onclick="addScore(${g.id}, ${currentTid}, ${cnum}, ${p}, this)">${icon}</button>`;
+                    const isActive = (g.current_points == p);
+                    const activeStyle = isActive ? "style='opacity:1; filter:grayscale(0); transform:scale(1.4)'" : "";
+                    const activeClass = isActive ? " active-face" : "";
+                    facesHtml += `<button class="face-btn${activeClass}" ${activeStyle} onclick="addScore(${g.id}, ${currentTid}, ${cnum}, ${p}, this)">${icon}</button>`;
                 }
-                const undoBtn = `<button class="face-btn" style="background:rgba(255, 50, 50, 0.2); margin-left:10px" onclick="addScore(${g.id}, ${currentTid}, ${cnum}, 0, this)">❌</button>`;
-                return `<div class="module group-card"><p class="group-header" style="color:var(--primary)">${g.name}</p><div class="faces-container">${facesHtml}${undoBtn}</div></div>`;
+                return `<div class="module group-card"><p class="group-header" style="color:var(--primary)">${g.name}</p><div class="faces-container">${facesHtml}</div></div>`;
             }).join('');
         }
     } catch (e) { console.error(e); }
 }
 
-async function addScore(gid, tid, cnum, pts, btn) {
+async function addScore(gid, tid, cnum, originalPts, btn) {
     const resC = await fetch(`/tournaments/${currentTid}/challenges/`);
     const challenges = await resC.json();
     let ch = challenges.find(c => c.number == cnum);
     if (!ch) return alert("Prueba no situada.");
+    let pts = originalPts;
+    if (btn.classList.contains('active-face')) {
+        pts = 0;
+    }
+
     const parent = btn.parentElement;
     parent.querySelectorAll('.face-btn').forEach(b => {
         b.style.opacity = '0.3'; b.style.filter = 'grayscale(0.8)'; b.style.transform = 'scale(1)';
+        b.classList.remove('active-face');
     });
     if (pts > 0) {
         btn.style.opacity = '1'; btn.style.filter = 'grayscale(0)'; btn.style.transform = 'scale(1.4)';
+        btn.classList.add('active-face');
     }
 
     const formData = new FormData();
