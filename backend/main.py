@@ -7,6 +7,7 @@ from sqlalchemy import func
 import os
 import shutil
 import socket
+import base64
 
 from backend import models, database
 from backend.database import engine, get_db
@@ -70,6 +71,12 @@ def create_tournament(name: str = Form(...), num_groups: int = Form(...), num_ch
 def list_tournaments(db: Session = Depends(get_db)):
     return db.query(models.Tournament).all()
 
+@app.get("/tournaments/{tid}")
+def get_tournament(tid: int, db: Session = Depends(get_db)):
+    tourney = db.query(models.Tournament).filter(models.Tournament.id == tid).first()
+    if not tourney: raise HTTPException(status_code=404)
+    return tourney
+
 # --- CARGAR GRUPOS ---
 @app.get("/tournaments/{tid}/groups/")
 def get_groups(tid: int, challenge_num: int = None, active_only: bool = True, db: Session = Depends(get_db)):
@@ -132,10 +139,18 @@ async def upload_csv(tid: int, file: UploadFile = File(...), db: Session = Depen
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.post("/tournaments/{tid}/upload-map/")
-async def upload_map(tid: int, file: UploadFile = File(...)):
-    file_path = os.path.join(MAPS_DIR, f"map_{tid}.png")
-    with open(file_path, "wb") as buffer: shutil.copyfileobj(file.file, buffer)
-    return {"filename": f"/uploads/maps/map_${tid}.png"}
+async def upload_map(tid: int, file: UploadFile = File(...), db: Session = Depends(get_db)):
+    tourney = db.query(models.Tournament).filter(models.Tournament.id == tid).first()
+    if not tourney: raise HTTPException(status_code=404)
+    contents = await file.read()
+    b64 = base64.b64encode(contents).decode("utf-8")
+    ext = "png"
+    if file.filename and "." in file.filename:
+        ext = file.filename.split(".")[-1]
+    data_uri = f"data:image/{ext};base64,{b64}"
+    tourney.map_url = data_uri
+    db.commit()
+    return {"filename": data_uri}
 
 @app.post("/tournaments/{tid}/challenges/{num}/location/")
 def update_location(tid: int, num: int, x: float = Form(...), y: float = Form(...), db: Session = Depends(get_db)):
@@ -152,6 +167,12 @@ def get_challenges(tid: int, db: Session = Depends(get_db)):
 @app.post("/score/")
 def add_score(group_id: int = Form(...), challenge_id: int = Form(...), points: int = Form(...), db: Session = Depends(get_db)):
     score = db.query(models.Score).filter(models.Score.group_id == group_id, models.Score.challenge_id == challenge_id).first()
+    if points == 0:
+        if score:
+            db.delete(score)
+            db.commit()
+        return {"status": "DELETED"}
+        
     if score: score.points = points
     else: db.add(models.Score(group_id=group_id, challenge_id=challenge_id, points=points))
     db.commit()

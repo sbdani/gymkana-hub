@@ -156,8 +156,14 @@ async function loadAdminData(tid) {
     fetchAdminChallenges(tid);
     fetchAdminLeaderboard(tid);
     updateQR(tid);
-    const img = document.getElementById('admin-map-preview');
-    if (img) img.src = `/uploads/maps/map_${tid}.png?t=` + new Date().getTime();
+    try {
+        const res = await fetch(`/tournaments/${tid}`);
+        const tourney = await res.json();
+        const img = document.getElementById('admin-map-preview');
+        if (img) {
+            img.src = tourney.map_url || (`/uploads/maps/map_${tid}.png?t=` + new Date().getTime());
+        }
+    } catch(e) {}
 }
 
 function updateQR(tid) {
@@ -265,7 +271,8 @@ async function loadChallengePage(tid, cnum) {
                     const isActive = (g.current_points == p) ? "style='opacity:1; filter:grayscale(0); transform:scale(1.4)'" : "";
                     facesHtml += `<button class="face-btn" ${isActive} onclick="addScore(${g.id}, ${currentTid}, ${cnum}, ${p}, this)">${icon}</button>`;
                 }
-                return `<div class="module group-card"><p class="group-header" style="color:var(--primary)">${g.name}</p><div class="faces-container">${facesHtml}</div></div>`;
+                const undoBtn = `<button class="face-btn" style="background:rgba(255, 50, 50, 0.2); margin-left:10px" onclick="addScore(${g.id}, ${currentTid}, ${cnum}, 0, this)">❌</button>`;
+                return `<div class="module group-card"><p class="group-header" style="color:var(--primary)">${g.name}</p><div class="faces-container">${facesHtml}${undoBtn}</div></div>`;
             }).join('');
         }
     } catch (e) { console.error(e); }
@@ -280,7 +287,9 @@ async function addScore(gid, tid, cnum, pts, btn) {
     parent.querySelectorAll('.face-btn').forEach(b => {
         b.style.opacity = '0.3'; b.style.filter = 'grayscale(0.8)'; b.style.transform = 'scale(1)';
     });
-    btn.style.opacity = '1'; btn.style.filter = 'grayscale(0)'; btn.style.transform = 'scale(1.4)';
+    if (pts > 0) {
+        btn.style.opacity = '1'; btn.style.filter = 'grayscale(0)'; btn.style.transform = 'scale(1.4)';
+    }
 
     const formData = new FormData();
     formData.append("group_id", gid);
@@ -316,8 +325,21 @@ async function uploadMap() {
     try {
         const res = await fetch(`/tournaments/${currentTid}/upload-map/`, { method: 'POST', body: formData });
         const data = await res.json();
-        document.getElementById('admin-map-preview').src = data.filename + "?t=" + new Date().getTime();
+        document.getElementById('admin-map-preview').src = data.filename;
     } catch (e) { showDiag("Fallo mapa."); }
+}
+
+async function saveMapURL() {
+    const input = document.getElementById('map-url-input');
+    const url = input.value.trim();
+    if (!url) return;
+    const formData = new FormData();
+    formData.append("url", url);
+    try {
+        await fetch(`/tournaments/${currentTid}/map-url/`, { method: 'POST', body: formData });
+        document.getElementById('admin-map-preview').src = url;
+        input.value = "";
+    } catch(e) { showDiag("Error guardando URL."); }
 }
 
 async function resetAll() {
