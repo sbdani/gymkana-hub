@@ -1,0 +1,369 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>QR Dashboard - Gymkana Hub</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        
+        body {
+            font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            min-height: 100vh;
+            padding: 20px;
+            color: #fff;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+            padding: 20px;
+            background: rgba(255,255,255,0.05);
+            border-radius: 16px;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255,255,255,0.1);
+        }
+
+        .header h1 {
+            font-size: 2rem;
+            background: linear-gradient(45deg, #00d4ff, #7b2cbf);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 10px;
+        }
+
+        .tournament-name {
+            font-size: 1.3rem;
+            color: #a0a0a0;
+            font-weight: 300;
+        }
+
+        .controls {
+            display: flex;
+            justify-content: center;
+            gap: 15px;
+            margin-bottom: 30px;
+            flex-wrap: wrap;
+        }
+
+        .btn {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.3s;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            font-size: 0.9rem;
+        }
+
+        .btn-primary {
+            background: linear-gradient(45deg, #00d4ff, #0099cc);
+            color: white;
+        }
+
+        .btn-secondary {
+            background: rgba(255,255,255,0.1);
+            color: white;
+            border: 1px solid rgba(255,255,255,0.2);
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px rgba(0,212,255,0.3);
+        }
+
+        .qr-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+            gap: 25px;
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        @media (min-width: 1200px) {
+            .qr-grid { grid-template-columns: repeat(4, 1fr); }
+        }
+
+        @media (min-width: 1600px) {
+            .qr-grid { grid-template-columns: repeat(5, 1fr); }
+        }
+
+        .qr-card {
+            background: rgba(255,255,255,0.05);
+            border-radius: 16px;
+            padding: 20px;
+            text-align: center;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255,255,255,0.1);
+            transition: all 0.3s;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .qr-card::before {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; right: 0;
+            height: 3px;
+            background: linear-gradient(90deg, #00d4ff, #7b2cbf);
+            transform: scaleX(0);
+            transition: transform 0.3s;
+        }
+
+        .qr-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 15px 40px rgba(0,0,0,0.3);
+            border-color: rgba(0,212,255,0.3);
+        }
+
+        .qr-card:hover::before { transform: scaleX(1); }
+
+        .challenge-number {
+            font-size: 2.5rem;
+            font-weight: 800;
+            background: linear-gradient(45deg, #00d4ff, #7b2cbf);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 5px;
+        }
+
+        .challenge-title {
+            font-size: 0.9rem;
+            color: #888;
+            margin-bottom: 15px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .qr-container {
+            background: white;
+            padding: 15px;
+            border-radius: 12px;
+            display: inline-block;
+            margin-bottom: 15px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+        }
+
+        .qr-container img, .qr-container canvas {
+            display: block;
+            width: 150px;
+            height: 150px;
+        }
+
+        .qr-url {
+            font-size: 0.7rem;
+            color: #666;
+            word-break: break-all;
+            max-width: 180px;
+            margin: 0 auto;
+            font-family: monospace;
+            background: rgba(0,0,0,0.05);
+            padding: 5px;
+            border-radius: 4px;
+        }
+
+        .print-hint {
+            text-align: center;
+            margin-top: 40px;
+            padding: 20px;
+            color: #666;
+            font-size: 0.9rem;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 50px;
+            font-size: 1.2rem;
+            color: #00d4ff;
+        }
+
+        .error {
+            text-align: center;
+            padding: 50px;
+            color: #ff4757;
+            background: rgba(255,71,87,0.1);
+            border-radius: 12px;
+            border: 1px solid rgba(255,71,87,0.3);
+        }
+
+        /* Estilos para impresión */
+        @media print {
+            body {
+                background: white;
+                color: black;
+                padding: 10px;
+            }
+            .header {
+                background: none;
+                border: 2px solid #333;
+                color: black;
+            }
+            .header h1 {
+                background: none;
+                -webkit-text-fill-color: black;
+                color: black;
+            }
+            .controls { display: none; }
+            .qr-card {
+                background: white;
+                border: 2px solid #333;
+                break-inside: avoid;
+                page-break-inside: avoid;
+            }
+            .qr-card::before { display: none; }
+            .challenge-number {
+                background: none;
+                -webkit-text-fill-color: black;
+                color: black;
+            }
+            .challenge-title { color: #333; }
+            .qr-container {
+                box-shadow: none;
+                border: 1px solid #ccc;
+            }
+            .qr-url {
+                color: #333;
+                background: #f0f0f0;
+            }
+            .qr-grid { gap: 15px; }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>🏆 Panel de Códigos QR</h1>
+        <div class="tournament-name" id="tournament-name">Cargando...</div>
+    </div>
+
+    <div class="controls">
+        <button class="btn btn-primary" onclick="window.print()">🖨️ Imprimir Todos</button>
+        <button class="btn btn-secondary" onclick="downloadAllQR()">💾 Descargar PNG</button>
+        <button class="btn btn-secondary" onclick="location.href='/static/index.html'">← Volver al Panel</button>
+    </div>
+
+    <div id="qr-container">
+        <div class="loading">Cargando códigos QR...</div>
+    </div>
+
+    <div class="print-hint">
+        💡 <strong>Consejo:</strong> Usa Ctrl+P para imprimir en cartulina.<br>
+        Se recomienda laminar los códigos para uso exterior.
+    </div>
+
+    <script>
+        const urlParams = new URLSearchParams(window.location.search);
+        const tid = urlParams.get('tid') || localStorage.getItem('gymkana_tid');
+        let networkInfo = { local_ip: window.location.hostname, port: 8000 };
+
+        if (!tid) {
+            document.getElementById('qr-container').innerHTML = `
+                <div class="error">
+                    <h2>⚠️ No se encontró torneo</h2>
+                    <p>Selecciona un torneo primero desde el panel de administración.</p>
+                    <button class="btn btn-primary" onclick="location.href='/static/index.html'" style="margin-top:20px;">
+                        Ir al Panel
+                    </button>
+                </div>
+            `;
+        }
+
+        async function fetchNetwork() {
+            try {
+                const res = await fetch('/network-info/');
+                networkInfo = await res.json();
+            } catch (e) {
+                console.warn("Usando URL actual");
+            }
+        }
+
+        function getChallengeIcon(number) {
+            const icons = ['🔬', '🧪', '🔭', '🧬', '🏗️', '💻', '🌍', '⚡', '🧮', '🌱'];
+            return icons[(number - 1) % icons.length];
+        }
+
+        function generateQRUrl(cnum) {
+            let base = window.location.origin;
+            if (base.includes('localhost') || base.includes('127.0.0.1')) {
+                base = `http://${networkInfo.local_ip}:${networkInfo.port}`;
+            }
+            return `${base}/static/index.html?view=challenge&tid=${tid}&cnum=${cnum}`;
+        }
+
+        async function loadTournamentData() {
+            await fetchNetwork();
+            
+            try {
+                const tourneyRes = await fetch(`/tournaments/${tid}`);
+                const tourney = await tourneyRes.json();
+                document.getElementById('tournament-name').textContent = tourney.name;
+
+                const challengesRes = await fetch(`/tournaments/${tid}/challenges`);
+                const challenges = await challengesRes.json();
+                challenges.sort((a, b) => a.number - b.number);
+
+                renderQRGrid(challenges);
+            } catch (error) {
+                document.getElementById('qr-container').innerHTML = `
+                    <div class="error">
+                        <h2>Error al cargar</h2>
+                        <p>${error.message}</p>
+                    </div>
+                `;
+            }
+        }
+
+        function renderQRGrid(challenges) {
+            const container = document.getElementById('qr-container');
+            container.innerHTML = '<div class="qr-grid" id="qr-grid"></div>';
+            const grid = document.getElementById('qr-grid');
+
+            challenges.forEach(challenge => {
+                const card = document.createElement('div');
+                card.className = 'qr-card';
+                
+                const icon = getChallengeIcon(challenge.number);
+                const qrUrl = generateQRUrl(challenge.number);
+                const displayName = challenge.name || `Prueba ${challenge.number}`;
+                
+                card.innerHTML = `
+                    <div class="challenge-number">${icon} ${challenge.number}</div>
+                    <div class="challenge-title">${displayName}</div>
+                    <div class="qr-container" id="qr-${challenge.number}"></div>
+                    <div class="qr-url">${qrUrl}</div>
+                `;
+                
+                grid.appendChild(card);
+
+                setTimeout(() => {
+                    new QRCode(document.getElementById(`qr-${challenge.number}`), {
+                        text: qrUrl,
+                        width: 150,
+                        height: 150,
+                        colorDark: "#1a1a2e",
+                        colorLight: "#ffffff",
+                        correctLevel: QRCode.CorrectLevel.M
+                    });
+                }, 100);
+            });
+        }
+
+        function downloadAllQR() {
+            const canvases = document.querySelectorAll('.qr-container canvas');
+            canvases.forEach((canvas, index) => {
+                setTimeout(() => {
+                    const link = document.createElement('a');
+                    link.download = `prueba-${index + 1}-qr.png`;
+                    link.href = canvas.toDataURL();
+                    link.click();
+                }, index * 200);
+            });
+        }
+
+        loadTournamentData();
+    </script>
+</body>
+</html>

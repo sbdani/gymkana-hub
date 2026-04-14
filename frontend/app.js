@@ -116,6 +116,28 @@ function scoreFromPC() {
     showView('challenge', currentTid, cnum);
 }
 
+// En la función loadAdminData o donde renderizas la vista de admin
+// Agrega este botón al HTML de la vista admin:
+
+function renderQRDashboardButton() {
+    const btn = document.createElement('button');
+    btn.className = 'btn btn-secondary';
+    btn.innerHTML = '📱 Ver Todos los QR';
+    btn.onclick = () => {
+        window.open(`/static/qr-dashboard.html?tid=${currentTid}`, '_blank');
+    };
+    // Insertar en el contenedor de botones del admin
+    document.getElementById('admin-controls')?.appendChild(btn);
+}
+
+// ============================================
+// NUEVO: Abrir Panel de QR
+// ============================================
+function openQRDashboard() {
+    if (getRole() !== 'ADMIN') return;
+    window.open(`/static/qr-dashboard.html?tid=${currentTid}`, '_blank', 'width=1400,height=900,scrollbars=yes');
+}
+
 // --- DATOS ---
 async function loadTournaments() {
     try {

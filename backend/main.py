@@ -16,6 +16,12 @@ models.Base.metadata.create_all(bind=engine)
 
 app = FastAPI()
 
+# ============================================
+# VARIABLES DE ENTORNO PARA PINs DE SEGURIDAD
+# ============================================
+ADMIN_PIN = os.getenv("ADMIN_PIN", "2412")
+COLAB_PIN = os.getenv("COLAB_PIN", "3333")
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -163,6 +169,21 @@ def update_location(tid: int, num: int, x: float = Form(...), y: float = Form(..
 @app.get("/tournaments/{tid}/challenges/")
 def get_challenges(tid: int, db: Session = Depends(get_db)):
     return db.query(models.Challenge).filter(models.Challenge.tournament_id == tid).all()
+
+# ============================================
+# NUEVO: ACTUALIZAR NOMBRE DE PRUEBA
+# ============================================
+@app.post("/tournaments/{tid}/challenges/{num}/name/")
+def update_challenge_name(tid: int, num: int, name: str = Form(...), db: Session = Depends(get_db)):
+    ch = db.query(models.Challenge).filter(
+        models.Challenge.tournament_id == tid, 
+        models.Challenge.number == num
+    ).first()
+    if not ch:
+        raise HTTPException(status_code=404, detail="Prueba no encontrada")
+    ch.name = name
+    db.commit()
+    return {"status": "OK", "name": name}
 
 @app.post("/score/")
 def add_score(group_id: int = Form(...), challenge_id: int = Form(...), points: int = Form(...), db: Session = Depends(get_db)):
